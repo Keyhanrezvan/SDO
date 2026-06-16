@@ -965,6 +965,153 @@
       refreshInternetDate();
     }
 
+    function pdfSafe(value) {
+      return String(value || "")
+        .replace(/[^\x20-\x7E]/g, " ")
+        .replace(/\\/g, "\\\\")
+        .replace(/\(/g, "\\(")
+        .replace(/\)/g, "\\)");
+    }
+
+    function wrapPdfText(value, maxChars) {
+      const words = String(value || "").replace(/\s+/g, " ").trim().split(" ").filter(Boolean);
+      const lines = [];
+      let line = "";
+      words.forEach((word) => {
+        const next = line ? `${line} ${word}` : word;
+        if (next.length > maxChars && line) {
+          lines.push(line);
+          line = word;
+        } else {
+          line = next;
+        }
+      });
+      if (line) lines.push(line);
+      return lines.length ? lines : [""];
+    }
+
+    function makeReceiptPdf() {
+      const encoder = new TextEncoder();
+      const commands = [];
+      const add = (command) => commands.push(command);
+      const text = (x, y, size, font, value) => {
+        add(`BT /${font} ${size} Tf 1 0 0 1 ${x} ${y} Tm (${pdfSafe(value)}) Tj ET`);
+      };
+      const line = (x1, y1, x2, y2, width = 1) => {
+        add(`${width} w ${x1} ${y1} m ${x2} ${y2} l S`);
+      };
+      const rect = (x, y, width, height) => {
+        add(`${x} ${y} ${width} ${height} re S`);
+      };
+      const green = "0.059 0.463 0.431";
+      const selections = lensPackageSelections();
+      const notesText = $("notes").value.trim();
+      let y = 748;
+
+      add(`${green} RG 4 w 36 764 m 576 764 l S`);
+      add("0 0 0 RG 1 w");
+      rect(62, 700, 54, 46);
+      text(76, 719, 18, "F2", "oo");
+      line(87, 724, 101, 724, 1);
+      line(70, 729, 82, 739, 1);
+      line(104, 729, 116, 739, 1);
+
+      text(188, y, 22, "F2", "SUPER DISCOUNT OPTICAL");
+      y -= 20;
+      text(252, y, 13, "F2", "Look sharp. Spend smart.");
+      y -= 16;
+      text(226, y, 9, "F1", "3530 Forest Ln #110, Dallas, TX 75234");
+      y -= 12;
+      text(274, y, 9, "F1", "214-654-0250");
+      line(36, 680, 576, 680, 2);
+
+      y = 654;
+      text(36, y, 20, "F2", "RECEIPT");
+      y -= 32;
+      text(36, y, 8, "F2", "CUSTOMER");
+      text(220, y, 8, "F2", "ORDER DATE");
+      text(404, y, 8, "F2", "PAYMENT");
+      y -= 14;
+      text(36, y, 12, "F2", $("customerName").value.trim() || "-");
+      text(220, y, 12, "F2", formatDate($("orderDate").value));
+      text(404, y, 12, "F2", $("paymentType").value);
+      line(36, y - 10, 576, y - 10, 0.5);
+
+      y -= 40;
+      text(36, y, 9, "F2", "LENS PACKAGE");
+      y -= 16;
+      selections.forEach((selection) => {
+        const title = selection.category === selection.value ? selection.value : `${selection.category}: ${selection.value}`;
+        text(42, y, 11, "F2", title);
+        text(520, y, 11, "F2", money(selection.price));
+        y -= 12;
+        wrapPdfText(selection.benefit, 70).forEach((benefitLine) => {
+          text(42, y, 9, "F1", benefitLine);
+          y -= 10;
+        });
+        line(42, y + 4, 570, y + 4, 0.25);
+        y -= 6;
+      });
+
+      if (notesText) {
+        y -= 4;
+        text(36, y, 9, "F2", "NOTES");
+        y -= 13;
+        wrapPdfText(notesText, 92).forEach((noteLine) => {
+          text(42, y, 10, "F1", noteLine);
+          y -= 12;
+        });
+      }
+
+      y = Math.max(y - 18, 156);
+      add(`${green} RG 1.5 w 360 ${y - 6} 216 42 re S 0 0 0 RG`);
+      text(376, y + 18, 8, "F2", "TOTAL");
+      text(376, y, 13, "F2", "Amount Paid");
+      text(516, y, 13, "F2", money(totalAmount()));
+
+      line(52, 104, 258, 104, 1);
+      line(320, 104, 560, 104, 1);
+      text(52, 88, 9, "F2", "CUSTOMER SIGNATURE");
+      text(320, 88, 9, "F2", "AUTHORIZED BY");
+      text(176, 52, 9, "F1", "Thank you for choosing Super Discount Optical. Please keep this receipt for your records.");
+
+      const content = commands.join("\n");
+      const objects = [
+        "<< /Type /Catalog /Pages 2 0 R >>",
+        "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+        "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 4 0 R /F2 5 0 R >> >> /Contents 6 0 R >>",
+        "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+        "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>",
+        `<< /Length ${encoder.encode(content).length} >>\nstream\n${content}\nendstream`
+      ];
+      let pdf = "%PDF-1.4\n";
+      const offsets = [0];
+      objects.forEach((object, index) => {
+        offsets.push(encoder.encode(pdf).length);
+        pdf += `${index + 1} 0 obj\n${object}\nendobj\n`;
+      });
+      const xrefOffset = encoder.encode(pdf).length;
+      pdf += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
+      offsets.slice(1).forEach((offset) => {
+        pdf += `${String(offset).padStart(10, "0")} 00000 n \n`;
+      });
+      pdf += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`;
+      return new Blob([encoder.encode(pdf)], { type: "application/pdf" });
+    }
+
+    function downloadReceiptPdf() {
+      updatePreview();
+      const blob = makeReceiptPdf();
+      const link = document.createElement("a");
+      const datePart = $("orderDate").value || new Date().toISOString().slice(0, 10);
+      link.href = URL.createObjectURL(blob);
+      link.download = `super-discount-optical-receipt-${datePart}.pdf`;
+      document.body.append(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+    }
+
     setupOptionPriceControls();
     fields.forEach((field) => $(field).addEventListener("input", updatePreview));
     lensInputs.forEach((input) => input.addEventListener("change", () => {
@@ -972,14 +1119,7 @@
       updatePreview();
     }));
     $("printBtn").addEventListener("click", () => window.print());
-    $("pdfBtn").addEventListener("click", () => {
-      const oldTitle = document.title;
-      document.title = "Super Discount Optical Receipt";
-      window.print();
-      setTimeout(() => {
-        document.title = oldTitle;
-      }, 500);
-    });
+    $("pdfBtn").addEventListener("click", downloadReceiptPdf);
     $("dateBtn").addEventListener("click", refreshInternetDate);
     $("clearBtn").addEventListener("click", clearForm);
 
