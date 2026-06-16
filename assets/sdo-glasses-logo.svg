@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 370" role="img" aria-labelledby="title desc">
+  <title id="title">Retro round black glasses logo</title>
+  <desc id="desc">Black and white retro round eyeglasses inspired by the supplied reference image.</desc>
+  <rect width="700" height="370" fill="#fff"/>
+  <g transform="translate(28 0)" fill="none" stroke="#050505" stroke-width="18" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M170 173 L298 47 C315 31 338 39 337 64 L333 85"/>
+    <path d="M470 173 L566 72 C583 55 606 64 604 91 L600 111"/>
+    <circle cx="185" cy="224" r="82"/>
+    <circle cx="422" cy="224" r="82"/>
+    <path d="M267 220 C285 194 355 194 373 220"/>
+    <path d="M103 220 C85 219 76 229 76 247 C76 266 88 276 104 271"/>
+    <path d="M503 220 C522 219 531 229 531 247 C531 266 519 276 503 271"/>
+    <path d="M267 236 C277 227 288 227 298 236"/>
+    <path d="M342 236 C352 227 363 227 373 236"/>
+  </g>
+</svg>
