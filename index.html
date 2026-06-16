@@ -739,6 +739,7 @@
 
       <div class="actions">
         <button type="button" id="printBtn">Print Receipt</button>
+        <button type="button" id="pdfBtn">Download PDF</button>
         <button type="button" class="secondary" id="dateBtn">Refresh Date</button>
         <button type="button" class="secondary" id="clearBtn">Clear</button>
       </div>
@@ -971,6 +972,14 @@
       updatePreview();
     }));
     $("printBtn").addEventListener("click", () => window.print());
+    $("pdfBtn").addEventListener("click", () => {
+      const oldTitle = document.title;
+      document.title = "Super Discount Optical Receipt";
+      window.print();
+      setTimeout(() => {
+        document.title = oldTitle;
+      }, 500);
+    });
     $("dateBtn").addEventListener("click", refreshInternetDate);
     $("clearBtn").addEventListener("click", clearForm);
 
